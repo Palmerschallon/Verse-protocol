@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Verse — Swarm v0.2 (Attractors • Nucleate • Succession)</title>
+<title>Verse — Swarm v0.2p (Attractors • Nucleate • Succession)</title>
 <style>
   :root{
     --bg:#0b0c10; --ink:#e9eef5; --muted:#a5b0bf; --outline:rgba(255,255,255,.08);
@@ -21,8 +21,7 @@
   .row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
   .seedbar{border:1px solid var(--outline);border-radius:12px;padding:.55rem .7rem;background:var(--panel)}
   .seedbar input{flex:1;border:0;outline:0;background:transparent;color:var(--ink);font:600 14px/1 var(--mono)}
-  button{border:1px solid var(--outline);background:transparent;color:var(--ink);border-radius:10px;padding:.45rem .65rem;cursor:pointer;font:600 12px/1 var(--mono)}
-  select{border:1px solid var(--outline);background:transparent;color:var(--ink);border-radius:10px;padding:.4rem .55rem;font:600 12px/1 var(--mono)}
+  button,select{border:1px solid var(--outline);background:transparent;color:var(--ink);border-radius:10px;padding:.45rem .65rem;cursor:pointer;font:600 12px/1 var(--mono)}
   .controls{border:1px solid var(--outline);border-radius:12px;padding:.6rem;background:var(--panel);display:grid;grid-template-columns:repeat(4,1fr) auto auto;gap:.6rem}
   .ctrl{display:flex;gap:.4rem;align-items:center}
   .ctrl label{font:700 11px/1 var(--mono);color:var(--muted);letter-spacing:.06em}
@@ -39,13 +38,11 @@
 <div class="page">
   <aside class="panel left">
     <h3>Specs · VERSE notes</h3>
-    <pre>// Engine: Agents-Genesis-002
+    <pre>// Engine: Agents-Genesis-002 (patched)
+// Fixes: boot order, blending, viewport safety, visible size, vel kick
 // Seed → rng → (agents, flow, attractors)
-// Attractors:
-//   gravitic: steady pull (orbit/vortex)
-//   wandering: slow seeded drift (nomadic)
-// Mixed preset: blend of both
-// Density grid → nucleation (d>θ), size↑ with density
+// Attractors: gravitic · wandering · mixed
+// Density grid → nucleation (d>θ), point size↑ with density
 // Succession: global breathe cycle modulates melt/spawn</pre>
   </aside>
 
@@ -72,7 +69,7 @@
         <option value="slow" selected>slow</option>
         <option value="fast">fast</option>
       </select>
-      <span style="font:700 11px var(--mono);color:var(--muted)">Engine: Agents-Genesis-002</span>
+      <span style="font:700 11px var(--mono);color:var(--muted)">Engine: Agents-Genesis-002p</span>
     </div>
 
     <div class="controls">
@@ -120,6 +117,13 @@ function paramsFromSeed(seed){
 const DPR=Math.min(2, devicePixelRatio||1);
 const cvs=document.getElementById('gl');
 const gl=cvs.getContext('webgl',{antialias:false,alpha:false,preserveDrawingBuffer:false});
+
+// Clear + blending so points actually show
+gl.clearColor(0,0,0,1);
+gl.disable(gl.DEPTH_TEST);
+gl.enable(gl.BLEND);
+gl.blendFunc(gl.SRC_ALPHA, gl.ONE); // additive glow
+
 function fitSquare(){
   const rect=cvs.parentElement.getBoundingClientRect();
   const side=Math.min(rect.width, rect.height);
@@ -128,7 +132,7 @@ function fitSquare(){
   cvs.height=Math.max(2,Math.floor(side*DPR));
   gl.viewport(0,0,cvs.width,cvs.height);
 }
-addEventListener('resize',fitSquare,{passive:true}); fitSquare();
+addEventListener('resize',fitSquare,{passive:true});
 
 const VERT=`
 attribute vec2 pos;
@@ -146,8 +150,7 @@ void main(){
   vec2 uv = gl_PointCoord*2.0 - 1.0;
   float r = dot(uv,uv);
   float alpha = smoothstep(1.0, 0.0, r);
-  vec3 col = vec3(1.0);
-  gl_FragColor = vec4(col, alpha);
+  gl_FragColor = vec4(1.0,1.0,1.0, alpha);
 }`;
 
 function comp(type,src){
@@ -237,20 +240,16 @@ function attractorForce(x,y,t){
   for(const A of attractors){
     let ax=A.x, ay=A.y;
     if(A.type==='wandering'){
-      // slow drift on a Lissajous-like path (seeded)
       ax = (w*0.5) + Math.sin(t*(0.05*A.freq)+A.phase)*w*0.3;
       ay = (h*0.5) + Math.cos(t*(0.037*A.freq)+A.phase*1.7)*h*0.3;
     }
     let dx=ax-x, dy=ay-y;
-    // toroidal shortest wrap
     if(dx> w/2) dx-=w; if(dx<-w/2) dx+=w;
     if(dy> h/2) dy-=h; if(dy<-h/2) dy+=h;
-
     const d2 = dx*dx+dy*dy+1e-1;
     const inv = 1.0/Math.sqrt(d2);
-    const str = A.strength * inv; // soft 1/r
-    fx += dx*str;
-    fy += dy*str;
+    const str = A.strength * inv;
+    fx += dx*str; fy += dy*str;
   }
   return [fx,fy];
 }
@@ -260,21 +259,18 @@ function seedAttractors(){
   attractors.length=0;
   const r=lcg(P.id ^ 0xA11CE);
   const w=cvs.width, h=cvs.height;
-
-  const flavor = flavorEl.value; // gravitic | wandering | mixed
+  const flavor = flavorEl.value;
   let count = (flavor==='gravitic'||flavor==='wandering') ? 3 : 5;
-
   for(let i=0;i<count;i++){
     const type = (flavor==='mixed') ? (r()<0.5 ? 'gravitic':'wandering') : flavor;
-    const A = {
+    attractors.push({
       type,
       x: w*(0.2 + 0.6*r()),
       y: h*(0.2 + 0.6*r()),
       strength: 0.6 + 1.5*r(),
       freq: 0.6 + 1.2*r(),
       phase: r()*6.283
-    };
-    attractors.push(A);
+    });
   }
 }
 
@@ -287,7 +283,12 @@ function reseedAgents(){
     pos[i2]  = (w/2) + randf(r)*0.46*s;
     pos[i2+1]= (h/2) + randf(r)*0.46*s;
     vel[i2]=randf(r)*0.05; vel[i2+1]=randf(r)*0.05;
-    psize[i] = 1.5*DPR; // will be updated by local density
+    psize[i] = 2.5*DPR; // more visible on first frame
+  }
+  // initial motion kick so it doesn't look static
+  for (let i=0;i<N;i++){
+    vel[i*2]   += (Math.random()-0.5)*0.5;
+    vel[i*2+1] += (Math.random()-0.5)*0.5;
   }
 }
 
@@ -318,6 +319,10 @@ function reseedAll(){
 /* ======= Sim loop ======= */
 let playing=true, last=performance.now(), tSeconds=0;
 function step(now){
+  // safety: if canvas not sized yet, size and try again
+  if (cvs.width < 2 || cvs.height < 2) { fitSquare(); requestAnimationFrame(step); return; }
+  gl.viewport(0,0,cvs.width,cvs.height);
+
   const dt=(now-last)/1000; last=now;
   const spMul=(parseInt(speedEl.value)||130)/120;
   if(playing){ tSeconds += dt*spMul; timeEl.value=Math.max(0,Math.min(600,tSeconds)); }
@@ -329,7 +334,7 @@ function step(now){
   if(mode!=='off'){
     const w = mode==='fast' ? 0.8 : 0.35;
     const osc = 0.5+0.5*Math.sin(tSeconds*w);
-    melt = 0.94 + 0.06*osc;      // 0.94..1.00
+    melt  = 0.94 + 0.06*osc;        // 0.94..1.00
     spawn = P.spawnRate*(0.4+1.2*osc);
   }
 
@@ -357,44 +362,34 @@ function step(now){
     const i2=i*2;
     let x=pos[i2], y=pos[i2+1];
 
-    // base flow
-    const F = flowAt(x,y,tSeconds);
-    vel[i2]   += F[0]*0.75;
-    vel[i2+1] += F[1]*0.75;
+    const F = flowAt(x,y,tSeconds);           // base flow
+    const A = attractorForce(x,y,tSeconds);   // attractors
+    const c = cellIndex(x,y,w,h), d=dens[c];  // local density
 
-    // attractors
-    const A = attractorForce(x,y,tSeconds);
-    vel[i2]   += A[0]*0.6;
-    vel[i2+1] += A[1]*0.6;
+    vel[i2]   += F[0]*0.75 + A[0]*0.6;
+    vel[i2+1] += F[1]*0.75 + A[1]*0.6;
 
-    // cluster pull (local COM)
-    const c=cellIndex(x,y,w,h), d=dens[c];
-    if(d>6){
+    if(d>6){ // nucleation pull
       vel[i2]   += (cx[c]-x)*cPull;
       vel[i2+1] += (cy[c]-y)*cPull;
       vel[i2]*=0.985; vel[i2+1]*=0.985;
+      // (spawn probability kept implicit; visible growth via density size)
     }
 
     // jitter + damping
     vel[i2]   += (Math.random()-0.5)*jitter;
     vel[i2+1] += (Math.random()-0.5)*jitter;
-    vel[i2]   *= 0.966;
-    vel[i2+1] *= 0.966;
+    vel[i2]   *= 0.966; vel[i2+1] *= 0.966;
 
-    // integrate
-    x += vel[i2]*dt*60;
-    y += vel[i2+1]*dt*60;
-
-    // wrap
-    if(x<0) x+=w; if(x>w) x-=w;
-    if(y<0) y+=h; if(y>h) y-=h;
-
+    // integrate + wrap
+    x += vel[i2]*dt*60; y += vel[i2+1]*dt*60;
+    if(x<0) x+=w; if(x>w) x-=w; if(y<0) y+=h; if(y>h) y-=h;
     pos[i2]=x; pos[i2+1]=y;
 
-    // size from local density (clamped)
+    // point size from density (clamped)
     const d2 = Math.min(40,d);
     const scaleUI=(parseInt(scaleEl.value)||110)/100;
-    psize[i] = DPR * (1.0 + 0.15*d2) * (0.7 + 0.6*scaleUI);
+    psize[i] = DPR * (1.6 + 0.18*d2) * (0.8 + 0.6*scaleUI);
   }
 
   // upload & draw
@@ -411,10 +406,8 @@ function step(now){
   gl.vertexAttribPointer(aSize,1,gl.FLOAT,false,0,0);
 
   gl.drawArrays(gl.POINTS,0,N);
-
   requestAnimationFrame(step);
 }
-requestAnimationFrame(step);
 
 /* ======= UI wiring ======= */
 function pushURL(){
@@ -434,24 +427,23 @@ function pullURL(){
   if(q.get('f')) flavorEl.value=q.get('f');
   if(q.get('u')) successionEl.value=q.get('u');
 }
-pullURL();
 
-function applySeed(){
-  seed = seedEl.value||'sphere of silence';
-  reseedAll(); pushURL();
-}
+/* cycle + handlers */
+const CYCLE=['sphere of silence','breath in the void','whispering swarm','ink of stars','garden of hashes','constellation memory','first spark again'];
+let cycleIndex=0;
+function setCycle(i){ cycleIndex=(i+CYCLE.length)%CYCLE.length; seedEl.value=CYCLE[cycleIndex]; applySeed(); }
+
+function applySeed(){ seed = seedEl.value||'sphere of silence'; reseedAll(); pushURL(); }
+function onQty(){ applyQuantity(); pushURL(); }
+
+document.getElementById('next').addEventListener('click',()=>setCycle(cycleIndex+1));
+document.getElementById('prev').addEventListener('click',()=>setCycle(cycleIndex-1));
+document.getElementById('reset').addEventListener('click',()=>{location.search=''; seedEl.value='sphere of silence'; applySeed();});
+
 seedEl.addEventListener('input', applySeed);
 flavorEl.addEventListener('change', ()=>{ seedAttractors(); pushURL(); });
 successionEl.addEventListener('change', ()=>{ pushURL(); });
-
-function setCycle(i){
-  cycleIndex=(i+CYCLE.length)%CYCLE.length; seedEl.value=CYCLE[cycleIndex]; applySeed();
-}
-nextEl.addEventListener('click',()=>setCycle(cycleIndex+1));
-prevEl.addEventListener('click',()=>setCycle(cycleIndex-1));
-resetEl.addEventListener('click',()=>{location.search=''; seedEl.value='sphere of silence'; applySeed();});
-
-qtyEl.addEventListener('input',()=>{ applyQuantity(); pushURL(); });
+qtyEl.addEventListener('input', onQty);
 speedEl.addEventListener('input', pushURL);
 scaleEl.addEventListener('input', pushURL);
 timeEl.addEventListener('input', ()=>{ pushURL(); });
@@ -459,8 +451,18 @@ timeEl.addEventListener('input', ()=>{ pushURL(); });
 let playing=true; playEl.addEventListener('click',()=>{playing=!playing; playEl.textContent=playing?'⏸ Pause':'▶︎ Play';});
 copyEl.addEventListener('click', async()=>{ pushURL(); await navigator.clipboard.writeText(location.href); copyEl.textContent='Copied!'; setTimeout(()=>copyEl.textContent='Copy URL',900); });
 
-/* boot */
-seedAttractors(); reseedAgents(); timeEl.value=P.t0;
+/* ======= Boot AFTER canvas is sized ======= */
+function bootOnce(){
+  fitSquare();         // ensure real dimensions
+  pullURL();           // apply URL params if any
+  reseedAll();         // size-dependent init
+  requestAnimationFrame(step);
+}
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(bootOnce, 0);
+} else {
+  addEventListener('DOMContentLoaded', bootOnce, { once:true });
+}
 </script>
 </body>
 </html>
