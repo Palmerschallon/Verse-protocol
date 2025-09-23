@@ -3,26 +3,26 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Verse — Seed → Dream (Shader Param v2)</title>
+<title>Verse — Swarm v0.2 (Attractors • Nucleate • Succession)</title>
 <style>
   :root{
     --bg:#0b0c10; --ink:#e9eef5; --muted:#a5b0bf; --outline:rgba(255,255,255,.08);
     --panel:rgba(255,255,255,.03); --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    --serif: "Iowan Old Style","Georgia",serif; --hint:#8fd3ff;
+    --serif: "Iowan Old Style","Georgia",serif;
   }
   *{box-sizing:border-box} html,body{margin:0;height:100%;background:var(--bg);color:var(--ink)}
   .page{display:grid;grid-template-columns:22% 1fr 22%;gap:1rem;height:100dvh;padding:1rem;overflow:hidden}
   .panel{border:1px solid var(--outline);background:var(--panel);border-radius:12px;padding:1rem;overflow:auto}
-  .left{font-family:var(--mono);opacity:.6} .right{font-style:italic;opacity:.6}
+  .left{font-family:var(--mono);opacity:.7} .right{font-style:italic;opacity:.75}
   .center{display:flex;flex-direction:column;gap:.75rem;min-width:0}
-  /* Square visual window */
   #vizWrap{position:relative;aspect-ratio:1/1;width:100%;border:1px solid var(--outline);border-radius:12px;overflow:hidden}
-  #viz{width:100%;height:100%;display:block}
-  .wm{position:absolute; right:10px; bottom:8px; font:700 10px/1 var(--mono); color:rgba(255,255,255,.35); pointer-events:none; letter-spacing:.06em}
+  #gl{width:100%;height:100%;display:block;background:#000}
+  .wm{position:absolute;right:10px;bottom:8px;font:700 10px/1 var(--mono);color:rgba(255,255,255,.35);pointer-events:none;letter-spacing:.06em}
   .row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
   .seedbar{border:1px solid var(--outline);border-radius:12px;padding:.55rem .7rem;background:var(--panel)}
   .seedbar input{flex:1;border:0;outline:0;background:transparent;color:var(--ink);font:600 14px/1 var(--mono)}
   button{border:1px solid var(--outline);background:transparent;color:var(--ink);border-radius:10px;padding:.45rem .65rem;cursor:pointer;font:600 12px/1 var(--mono)}
+  select{border:1px solid var(--outline);background:transparent;color:var(--ink);border-radius:10px;padding:.4rem .55rem;font:600 12px/1 var(--mono)}
   .controls{border:1px solid var(--outline);border-radius:12px;padding:.6rem;background:var(--panel);display:grid;grid-template-columns:repeat(4,1fr) auto auto;gap:.6rem}
   .ctrl{display:flex;gap:.4rem;align-items:center}
   .ctrl label{font:700 11px/1 var(--mono);color:var(--muted);letter-spacing:.06em}
@@ -33,77 +33,72 @@
   .scroll p,.scroll blockquote{font-family:var(--serif);line-height:1.55}
   .scroll blockquote{border-left:3px solid var(--outline);padding-left:.9rem;color:var(--muted)}
   @media (max-width:1000px){.page{grid-template-columns:1fr}}
-
-  /* Time scrub hint: pulse track until user interacts */
-  .hint-range::-webkit-slider-thumb { box-shadow: 0 0 0 0 rgba(143,211,255,.0); transition: box-shadow .3s ease; }
-  .hint-range.hinting::-webkit-slider-thumb { box-shadow: 0 0 0 6px rgba(143,211,255,.12); }
-  .hint-range.hinting { accent-color: var(--hint); }
 </style>
 </head>
 <body>
 <div class="page">
   <aside class="panel left">
-    <h3>Specs</h3>
-    <pre>// SeedID = SHA256( canonical(seed) + "WebGL-Dream-003" )
-params:
-  p0 palette
-  p1 complexity (quantity baseline)
-  p2 freq
-  p3 grain
-  p4 maskBias (if mask on)
-  p5 drift
-
-user controls:
-  time (scrub), speed, quantity, scale, mask on/off
-
-enhancements (v2):
-  • filament streaks along flow
-  • slight contrast bump (tonemap)
-  • deterministic Random (curated cycle)</pre>
+    <h3>Specs · VERSE notes</h3>
+    <pre>// Engine: Agents-Genesis-002
+// Seed → rng → (agents, flow, attractors)
+// Attractors:
+//   gravitic: steady pull (orbit/vortex)
+//   wandering: slow seeded drift (nomadic)
+// Mixed preset: blend of both
+// Density grid → nucleation (d>θ), size↑ with density
+// Succession: global breathe cycle modulates melt/spawn</pre>
   </aside>
 
   <main class="panel center">
     <div id="vizWrap">
-      <canvas id="viz"></canvas>
+      <canvas id="gl"></canvas>
       <div class="wm">Built on Verse</div>
     </div>
 
     <div class="row seedbar">
       <input id="seed" placeholder='Type a seed… e.g. "sphere of silence"' />
       <button id="prev">◀︎ Prev</button>
-      <button id="rand">Next</button>
+      <button id="next">Next</button>
       <button id="reset">Reset</button>
-      <button id="share">Share</button>
-      <span style="font:700 11px var(--mono);color:var(--muted)">Engine: WebGL-Dream-003</span>
+      <label style="font:700 11px var(--mono);color:var(--muted)">Flavor</label>
+      <select id="flavor">
+        <option value="gravitic">gravitic</option>
+        <option value="wandering">wandering</option>
+        <option value="mixed" selected>mixed</option>
+      </select>
+      <label style="font:700 11px var(--mono);color:var(--muted)">Succession</label>
+      <select id="succession">
+        <option value="off">off</option>
+        <option value="slow" selected>slow</option>
+        <option value="fast">fast</option>
+      </select>
+      <span style="font:700 11px var(--mono);color:var(--muted)">Engine: Agents-Genesis-002</span>
     </div>
 
     <div class="controls">
-      <div class="ctrl"><label>Time</label><input id="time" class="hint-range hinting" type="range" min="0" max="600" step="1" value="0"></div>
-      <div class="ctrl"><label>Speed</label><input id="speed" type="range" min="0" max="300" step="1" value="120"></div>
-      <div class="ctrl"><label>Quantity</label><input id="qty" type="range" min="0" max="100" step="1" value="60"></div>
-      <div class="ctrl"><label>Scale</label><input id="scale" type="range" min="10" max="300" step="1" value="110"></div>
-      <div class="toggle"><input id="mask" type="checkbox"><label style="font:700 11px var(--mono);color:var(--muted)">Radial Mask</label></div>
+      <div class="ctrl"><label>Time</label><input id="time" type="range" min="0" max="600" step="1" value="0"></div>
+      <div class="ctrl"><label>Speed</label><input id="speed" type="range" min="10" max="300" step="1" value="130"></div>
+      <div class="ctrl"><label>Quantity</label><input id="qty" type="range" min="5" max="100" step="1" value="70"></div>
+      <div class="ctrl"><label>Scale</label><input id="scale" type="range" min="50" max="200" step="1" value="110"></div>
       <div class="toggle"><button id="play">⏸ Pause</button></div>
       <div class="toggle"><button id="copy">Copy URL</button></div>
     </div>
 
     <section class="scroll">
       <h1>✶ The White Scroll of Verse ✶</h1>
-      <p>From silence, a seed. The world saw numbers; the wise saw a covenant. And the covenant learned to dream.</p>
-      <blockquote>“Chancellor on brink of second bailout for banks.”</blockquote>
-      <p>Verse inherits the seed and extends it: words become light, time becomes motion, quantity becomes weather, scale becomes perspective. Plant a seed; watch it become.</p>
+      <p>Agents roam, meet, nucleate, thicken, split, regrow. Choose a flavor of attractor and let the seed breathe.</p>
     </section>
   </main>
 
   <aside class="panel right">
     <h3>Commentary</h3>
-    <p>Determinism anchors trust. Evolution lives in versions. Culture emerges in constellations.</p>
-    <p>Shader-param first to ship the feeling; agents later if the world asks.</p>
+    <p>Gravitic → orbits & vortices. Wandering → caravans & streams. Mixed → ecosystems.</p>
+    <p>Succession modulates cluster memory (melt/spawn) to avoid static equilibria.</p>
   </aside>
 </div>
 
 <script type="module">
-/* ---------- Deterministic params from seed ---------- */
+/* ========== Seed RNG & params ========== */
 function djb2x(str){let h=5381;for(let i=0;i<str.length;i++)h=((h<<5)+h)^str.charCodeAt(i);return h>>>0;}
 function lcg(seed){let s=(seed>>>0)||1;return()=>((s=(1664525*s+1013904223)>>>0)/4294967296);}
 function paramsFromSeed(seed){
@@ -111,18 +106,20 @@ function paramsFromSeed(seed){
   const r=lcg(base);
   return {
     id:base>>>0,
-    p0:r(), p1:r(), p2:r(), p3:r(), p4:r(), p5:r(),
-    speed: 0.7 + 1.3*r(),
-    qty:   Math.floor(35 + 65*r()),
-    scale: 0.9 + 1.3*r(),
-    t0:    Math.floor(600*r())
+    flowA: r()*6.283,           // flow angle bias
+    flowF: 0.8+1.8*r(),         // flow frequency
+    jitter: 0.18+0.45*r(),      // random walk
+    clusterBias: 0.35+0.65*r(), // pull strength
+    spawnRate: 0.08+0.45*r(),   // birth rate (dense cells)
+    meltRate: 0.955+0.04*r(),   // density memory decay
+    t0: Math.floor(600*r())
   };
 }
 
-/* ---------- GL setup ---------- */
+/* ========== WebGL (points; CPU sim) ========== */
 const DPR=Math.min(2, devicePixelRatio||1);
-const cvs=document.getElementById('viz');
-const gl=cvs.getContext('webgl',{antialias:false,depth:false});
+const cvs=document.getElementById('gl');
+const gl=cvs.getContext('webgl',{antialias:false,alpha:false,preserveDrawingBuffer:false});
 function fitSquare(){
   const rect=cvs.parentElement.getBoundingClientRect();
   const side=Math.min(rect.width, rect.height);
@@ -133,135 +130,297 @@ function fitSquare(){
 }
 addEventListener('resize',fitSquare,{passive:true}); fitSquare();
 
-/* ---------- UI ---------- */
-const seedEl = document.getElementById('seed');
-const timeEl = document.getElementById('time');
-const speedEl= document.getElementById('speed');
-const qtyEl  = document.getElementById('qty');
-const scaleEl= document.getElementById('scale');
-const maskEl = document.getElementById('mask');
-const playEl = document.getElementById('play');
-const randEl = document.getElementById('rand');
-const prevEl = document.getElementById('prev');
-const resetEl= document.getElementById('reset');
-const copyEl = document.getElementById('copy');
-const shareEl= document.getElementById('share');
-
-const CYCLE=[
-  'sphere of silence','breath in the void','whispering swarm','ink of stars',
-  'glass orb tide','constellation memory','garden of hashes','first spark again'
-];
-let cycleIndex=0;
-
-function setFromParams(p){
-  seedEl.dataset.sid = String(p.id);
-  timeEl.value = p.t0;
-  speedEl.value= Math.round(p.speed*100);
-  qtyEl.value  = p.qty;
-  scaleEl.value= Math.round(p.scale*100);
-  maskEl.checked = false;
-}
-
-/* ---------- Shaders (v2 with filament streaks + tonemap) ---------- */
-const vert=`attribute vec2 aPos;void main(){gl_Position=vec4(aPos,0.,1.);} `;
-const frag=`
-precision highp float;
+const VERT=`
+attribute vec2 pos;
+attribute float size;
 uniform vec2 res;
-uniform float t;     // time seconds
-uniform float spd;   // speed multiplier
-uniform float qty;   // 0..1 complexity
-uniform float scl;   // zoom
-uniform float useMask; // 0/1
-uniform vec4 P01; uniform vec4 P23; uniform vec4 P45;
-
-vec3 hue(float h){
-  h=fract(h);
-  float r=abs(h*6.-3.)-1.;
-  float g=2.-abs(h*6.-2.);
-  float b=2.-abs(h*6.-4.);
-  return clamp(vec3(r,g,b),0.,1.);
-}
-float noise(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
-
 void main(){
-  vec2 uv=(gl_FragCoord.xy-0.5*res)/res.y;
-  uv*=scl;
+  vec2 clip = (pos / res)*2.0 - 1.0;
+  clip.y *= -1.0;
+  gl_Position = vec4(clip,0.0,1.0);
+  gl_PointSize = size;
+}`;
+const FRAG=`
+precision mediump float;
+void main(){
+  vec2 uv = gl_PointCoord*2.0 - 1.0;
+  float r = dot(uv,uv);
+  float alpha = smoothstep(1.0, 0.0, r);
+  vec3 col = vec3(1.0);
+  gl_FragColor = vec4(col, alpha);
+}`;
 
-  float p0=P01.x; float p1=P01.y; float p2=P23.x; float p3=P23.y; float p4=P45.x; float p5=P45.y;
-
-  float Q = mix(0.15, 2.3, qty);
-  float tt = t*mix(0.1,2.0, spd);
-
-  float r = length(uv);
-  float a = atan(uv.y, uv.x);
-
-  float w1 = sin( (a*p2 + r*(8.0+Q*6.0)) - tt*(0.32+0.4*p5) );
-  float w2 = sin( (a*(3.0+Q) + r*(18.0+p2*4.0)) + tt*(0.15+0.35*p1) );
-  float w3 = cos( (uv.x*(10.0+Q*8.0) - uv.y*(6.0+Q*5.0)) + tt*(0.25+0.2*p2) );
-  float field = (w1 + 0.7*w2 + 0.5*w3) / 2.2;
-
-  // --- filament streaks (fake particles): emphasize flow "ridges"
-  float ridge = smoothstep(0.55, 0.82, abs(field));
-  float streaks = ridge * (0.4 + 0.6*noise(uv*res*0.33 + tt));
-  // subtle directionality: vary with angle & time
-  streaks *= 0.6 + 0.4*sin(6.2831*fract(a/6.2831 + tt*0.03) + p0*6.2831);
-
-  // base color + grain
-  vec3 base = hue(p0 + 0.10*field + 0.03*sin(tt*0.33));
-  float g = noise(uv*res*0.7 + field);
-  vec3 col = base * (0.55 + 0.45*field) + 0.05*g*p3;
-
-  // add streak highlights
-  col += 0.35 * streaks * hue(p0 + 0.25);
-
-  // optional radial mask (off by default)
-  if(useMask>0.5){
-    float m = smoothstep(1.35, mix(0.25,1.0,p4), r);
-    col *= (1.0 - m);
-  }
-
-  // contrast/tonemap bump
-  col = pow(col, vec3(0.9));
-  gl_FragColor = vec4(col,1.0);
-}
-`;
-
-function compile(type,src){
+function comp(type,src){
   const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
   if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) console.warn(gl.getShaderInfoLog(s));
   return s;
 }
 const prog=gl.createProgram();
-gl.attachShader(prog,compile(gl.VERTEX_SHADER,vert));
-gl.attachShader(prog,compile(gl.FRAGMENT_SHADER,frag));
+gl.attachShader(prog,comp(gl.VERTEX_SHADER,VERT));
+gl.attachShader(prog,comp(gl.FRAGMENT_SHADER,FRAG));
 gl.linkProgram(prog); gl.useProgram(prog);
 
-const buf=gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER,buf);
-gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1, 1,-1, -1,1, 1,1]),gl.STATIC_DRAW);
-const aPos=gl.getAttribLocation(prog,'aPos');
+// buffers
+const posBuf=gl.createBuffer();
+const sizeBuf=gl.createBuffer();
+const aPos=gl.getAttribLocation(prog,'pos');
+const aSize=gl.getAttribLocation(prog,'size');
+gl.bindBuffer(gl.ARRAY_BUFFER,posBuf);
 gl.enableVertexAttribArray(aPos);
 gl.vertexAttribPointer(aPos,2,gl.FLOAT,false,0,0);
-
+gl.bindBuffer(gl.ARRAY_BUFFER,sizeBuf);
+gl.enableVertexAttribArray(aSize);
+gl.vertexAttribPointer(aSize,1,gl.FLOAT,false,0,0);
 const uRes=gl.getUniformLocation(prog,'res');
-const uT  =gl.getUniformLocation(prog,'t');
-const uSpd=gl.getUniformLocation(prog,'spd');
-const uQty=gl.getUniformLocation(prog,'qty');
-const uScl=gl.getUniformLocation(prog,'scl');
-const uMask=gl.getUniformLocation(prog,'useMask');
-const uP01=gl.getUniformLocation(prog,'P01');
-const uP23=gl.getUniformLocation(prog,'P23');
-const uP45=gl.getUniformLocation(prog,'P45');
 
-/* ---------- State ---------- */
-let seed='sphere of silence';
+/* ========== UI ========== */
+const seedEl=document.getElementById('seed');
+const timeEl=document.getElementById('time');
+const speedEl=document.getElementById('speed');
+const qtyEl  =document.getElementById('qty');
+const scaleEl=document.getElementById('scale');
+const playEl=document.getElementById('play');
+const copyEl=document.getElementById('copy');
+const nextEl=document.getElementById('next');
+const prevEl=document.getElementById('prev');
+const resetEl=document.getElementById('reset');
+const flavorEl=document.getElementById('flavor');
+const successionEl=document.getElementById('succession');
+
+const CYCLE=[
+  'sphere of silence','breath in the void','whispering swarm','ink of stars',
+  'garden of hashes','constellation memory','first spark again'
+];
+let cycleIndex=0;
+
+/* ========== Swarm state ========== */
+let seed='sphere of silence'; seedEl.value=seed;
 let P=paramsFromSeed(seed);
-seedEl.value=seed; setFromParams(P);
 
-/* URL sync */
+let N=60000;
+let pos=new Float32Array(N*2);
+let vel=new Float32Array(N*2);
+let psize=new Float32Array(N);
+
+let gridSize=96, cells=gridSize*gridSize;
+let dens=new Float32Array(cells);
+let cx  =new Float32Array(cells);
+let cy  =new Float32Array(cells);
+
+// Attractors
+let attractors=[]; // {type:'gravitic'|'wandering', x,y, strength, freq, phase}
+
+/* helpers */
+function randf(r){return (r()*2-1);}
+function cellIndex(x,y,w,h){
+  const gx=Math.max(0,Math.min(gridSize-1,((x/w)*gridSize)|0));
+  const gy=Math.max(0,Math.min(gridSize-1,((y/h)*gridSize)|0));
+  return gy*gridSize + gx;
+}
+
+/* flow field (seeded) */
+function flowAt(x,y,t){
+  const s=(parseInt(scaleEl.value)||100)/100;
+  const f=P.flowF*0.0015*s;
+  const a=P.flowA;
+  const nx = Math.cos(a)*x - Math.sin(a)*y;
+  const ny = Math.sin(a)*x + Math.cos(a)*y;
+  const v1 = Math.sin(nx*f + t*0.15);
+  const v2 = Math.cos(ny*f*1.2 - t*0.11);
+  return [v2 - v1, v1 + v2];
+}
+
+/* attractor force */
+function attractorForce(x,y,t){
+  let fx=0, fy=0;
+  const w=cvs.width, h=cvs.height;
+  for(const A of attractors){
+    let ax=A.x, ay=A.y;
+    if(A.type==='wandering'){
+      // slow drift on a Lissajous-like path (seeded)
+      ax = (w*0.5) + Math.sin(t*(0.05*A.freq)+A.phase)*w*0.3;
+      ay = (h*0.5) + Math.cos(t*(0.037*A.freq)+A.phase*1.7)*h*0.3;
+    }
+    let dx=ax-x, dy=ay-y;
+    // toroidal shortest wrap
+    if(dx> w/2) dx-=w; if(dx<-w/2) dx+=w;
+    if(dy> h/2) dy-=h; if(dy<-h/2) dy+=h;
+
+    const d2 = dx*dx+dy*dy+1e-1;
+    const inv = 1.0/Math.sqrt(d2);
+    const str = A.strength * inv; // soft 1/r
+    fx += dx*str;
+    fy += dy*str;
+  }
+  return [fx,fy];
+}
+
+/* seed attractors deterministically */
+function seedAttractors(){
+  attractors.length=0;
+  const r=lcg(P.id ^ 0xA11CE);
+  const w=cvs.width, h=cvs.height;
+
+  const flavor = flavorEl.value; // gravitic | wandering | mixed
+  let count = (flavor==='gravitic'||flavor==='wandering') ? 3 : 5;
+
+  for(let i=0;i<count;i++){
+    const type = (flavor==='mixed') ? (r()<0.5 ? 'gravitic':'wandering') : flavor;
+    const A = {
+      type,
+      x: w*(0.2 + 0.6*r()),
+      y: h*(0.2 + 0.6*r()),
+      strength: 0.6 + 1.5*r(),
+      freq: 0.6 + 1.2*r(),
+      phase: r()*6.283
+    };
+    attractors.push(A);
+  }
+}
+
+/* initialize agents */
+function reseedAgents(){
+  const r=lcg(P.id);
+  const w=cvs.width, h=cvs.height, s=Math.min(w,h);
+  for(let i=0;i<N;i++){
+    const i2=i*2;
+    pos[i2]  = (w/2) + randf(r)*0.46*s;
+    pos[i2+1]= (h/2) + randf(r)*0.46*s;
+    vel[i2]=randf(r)*0.05; vel[i2+1]=randf(r)*0.05;
+    psize[i] = 1.5*DPR; // will be updated by local density
+  }
+}
+
+/* quantity slider → N */
+function applyQuantity(){
+  const q=parseInt(qtyEl.value)||70;
+  const target=Math.floor(6000 + (q/100)*84000); // 6k..90k
+  if(target===N) return;
+  const oldPos=pos, oldVel=vel, oldSize=psize;
+  N=target;
+  pos=new Float32Array(N*2);
+  vel=new Float32Array(N*2);
+  psize=new Float32Array(N);
+  const copy=Math.min(oldPos.length,pos.length);
+  pos.set(oldPos.subarray(0,copy));
+  vel.set(oldVel.subarray(0,copy));
+  psize.set(oldSize.subarray(0,Math.min(oldSize.length,psize.length)));
+}
+
+/* full reseed from current seed/flavor */
+function reseedAll(){
+  P=paramsFromSeed(seed);
+  seedAttractors();
+  reseedAgents();
+  timeEl.value=P.t0;
+}
+
+/* ======= Sim loop ======= */
+let playing=true, last=performance.now(), tSeconds=0;
+function step(now){
+  const dt=(now-last)/1000; last=now;
+  const spMul=(parseInt(speedEl.value)||130)/120;
+  if(playing){ tSeconds += dt*spMul; timeEl.value=Math.max(0,Math.min(600,tSeconds)); }
+  else { tSeconds=parseFloat(timeEl.value)||0; }
+
+  // Succession: modulate melt/spawn slowly
+  const mode = successionEl.value; // off | slow | fast
+  let melt=P.meltRate, spawn=P.spawnRate;
+  if(mode!=='off'){
+    const w = mode==='fast' ? 0.8 : 0.35;
+    const osc = 0.5+0.5*Math.sin(tSeconds*w);
+    melt = 0.94 + 0.06*osc;      // 0.94..1.00
+    spawn = P.spawnRate*(0.4+1.2*osc);
+  }
+
+  // clear grid
+  dens.fill(0); cx.fill(0); cy.fill(0);
+
+  const w=cvs.width, h=cvs.height;
+
+  // accumulate density and center
+  for(let i=0;i<N;i++){
+    const x=pos[i*2], y=pos[i*2+1];
+    const c=cellIndex(x,y,w,h);
+    dens[c]+=1; cx[c]+=x; cy[c]+=y;
+  }
+  for(let c=0;c<cells;c++){
+    if(dens[c]>0){ cx[c]/=dens[c]; cy[c]/=dens[c]; }
+    dens[c]*=melt; // decay memory
+  }
+
+  const jitter=P.jitter*0.35;
+  const cPull=P.clusterBias*0.12;
+
+  // update agents
+  for(let i=0;i<N;i++){
+    const i2=i*2;
+    let x=pos[i2], y=pos[i2+1];
+
+    // base flow
+    const F = flowAt(x,y,tSeconds);
+    vel[i2]   += F[0]*0.75;
+    vel[i2+1] += F[1]*0.75;
+
+    // attractors
+    const A = attractorForce(x,y,tSeconds);
+    vel[i2]   += A[0]*0.6;
+    vel[i2+1] += A[1]*0.6;
+
+    // cluster pull (local COM)
+    const c=cellIndex(x,y,w,h), d=dens[c];
+    if(d>6){
+      vel[i2]   += (cx[c]-x)*cPull;
+      vel[i2+1] += (cy[c]-y)*cPull;
+      vel[i2]*=0.985; vel[i2+1]*=0.985;
+    }
+
+    // jitter + damping
+    vel[i2]   += (Math.random()-0.5)*jitter;
+    vel[i2+1] += (Math.random()-0.5)*jitter;
+    vel[i2]   *= 0.966;
+    vel[i2+1] *= 0.966;
+
+    // integrate
+    x += vel[i2]*dt*60;
+    y += vel[i2+1]*dt*60;
+
+    // wrap
+    if(x<0) x+=w; if(x>w) x-=w;
+    if(y<0) y+=h; if(y>h) y-=h;
+
+    pos[i2]=x; pos[i2+1]=y;
+
+    // size from local density (clamped)
+    const d2 = Math.min(40,d);
+    const scaleUI=(parseInt(scaleEl.value)||110)/100;
+    psize[i] = DPR * (1.0 + 0.15*d2) * (0.7 + 0.6*scaleUI);
+  }
+
+  // upload & draw
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(prog);
+  gl.uniform2f(uRes,cvs.width,cvs.height);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER,posBuf);
+  gl.bufferData(gl.ARRAY_BUFFER,pos,gl.DYNAMIC_DRAW);
+  gl.vertexAttribPointer(aPos,2,gl.FLOAT,false,0,0);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER,sizeBuf);
+  gl.bufferData(gl.ARRAY_BUFFER,psize,gl.DYNAMIC_DRAW);
+  gl.vertexAttribPointer(aSize,1,gl.FLOAT,false,0,0);
+
+  gl.drawArrays(gl.POINTS,0,N);
+
+  requestAnimationFrame(step);
+}
+requestAnimationFrame(step);
+
+/* ======= UI wiring ======= */
 function pushURL(){
   const q=new URLSearchParams({
-    s: seedEl.value, t: timeEl.value, v: speedEl.value, q: qtyEl.value, z: scaleEl.value, m: maskEl.checked?'1':'0'
+    s: seedEl.value, t: timeEl.value, v: speedEl.value, q: qtyEl.value, z: scaleEl.value,
+    f: flavorEl.value, u: successionEl.value
   });
   history.replaceState(null,'','?'+q.toString());
 }
@@ -272,69 +431,36 @@ function pullURL(){
   if(q.get('v')) speedEl.value=q.get('v');
   if(q.get('q')) qtyEl.value=q.get('q');
   if(q.get('z')) scaleEl.value=q.get('z');
-  if(q.get('m')) maskEl.checked=q.get('m')==='1';
+  if(q.get('f')) flavorEl.value=q.get('f');
+  if(q.get('u')) successionEl.value=q.get('u');
 }
 pullURL();
 
-/* Seed application */
 function applySeed(){
-  seed=seedEl.value||'sphere of silence';
-  P=paramsFromSeed(seed);
-  if(!location.search){ setFromParams(P); }
-  pushURL();
+  seed = seedEl.value||'sphere of silence';
+  reseedAll(); pushURL();
 }
-seedEl.addEventListener('input',applySeed);
+seedEl.addEventListener('input', applySeed);
+flavorEl.addEventListener('change', ()=>{ seedAttractors(); pushURL(); });
+successionEl.addEventListener('change', ()=>{ pushURL(); });
 
-/* Curated cycle (deterministic exploration) */
-function setCycle(i){ cycleIndex=(i+ CYCLE.length)%CYCLE.length; seedEl.value=CYCLE[cycleIndex]; applySeed(); }
-randEl.addEventListener('click',()=> setCycle(cycleIndex+1));
-prevEl.addEventListener('click',()=> setCycle(cycleIndex-1));
+function setCycle(i){
+  cycleIndex=(i+CYCLE.length)%CYCLE.length; seedEl.value=CYCLE[cycleIndex]; applySeed();
+}
+nextEl.addEventListener('click',()=>setCycle(cycleIndex+1));
+prevEl.addEventListener('click',()=>setCycle(cycleIndex-1));
 resetEl.addEventListener('click',()=>{location.search=''; seedEl.value='sphere of silence'; applySeed();});
 
-/* Copy URL + Share */
-copyEl.addEventListener('click',async()=>{ pushURL(); await navigator.clipboard.writeText(location.href); copyEl.textContent='Copied!'; setTimeout(()=>copyEl.textContent='Copy URL',900); });
-shareEl.addEventListener('click',async()=>{
-  pushURL();
-  const url=location.href;
-  const txt=`From the Genesis Block to Verse: seeds that dream.\n${url}`;
-  await navigator.clipboard.writeText(txt);
-  shareEl.textContent='Share text copied'; setTimeout(()=>shareEl.textContent='Share',1200);
-});
+qtyEl.addEventListener('input',()=>{ applyQuantity(); pushURL(); });
+speedEl.addEventListener('input', pushURL);
+scaleEl.addEventListener('input', pushURL);
+timeEl.addEventListener('input', ()=>{ pushURL(); });
 
-/* Time hint removal on first interaction */
-['input','mousedown','touchstart','keydown'].forEach(evt=>{
-  document.addEventListener(evt,()=> timeEl.classList.remove('hinting'), {once:true, passive:true});
-});
+let playing=true; playEl.addEventListener('click',()=>{playing=!playing; playEl.textContent=playing?'⏸ Pause':'▶︎ Play';});
+copyEl.addEventListener('click', async()=>{ pushURL(); await navigator.clipboard.writeText(location.href); copyEl.textContent='Copied!'; setTimeout(()=>copyEl.textContent='Copy URL',900); });
 
-/* ---------- Play / Time control ---------- */
-let playing=true, tSeconds=parseFloat(timeEl.value)||0, last=performance.now();
-playEl.addEventListener('click',()=>{playing=!playing; playEl.textContent=playing?'⏸ Pause':'▶︎ Play'; last=performance.now(); });
-
-function tick(now){
-  const dt=(now-last)/1000; last=now;
-  const speedMul = (parseInt(speedEl.value)||120)/100;
-  if(playing){ tSeconds += dt * speedMul; timeEl.value = Math.max(0,Math.min(600, tSeconds)); }
-  else { tSeconds = parseFloat(timeEl.value)||0; }
-
-  gl.uniform2f(uRes, cvs.width, cvs.height);
-  gl.uniform1f(uT, tSeconds);
-  gl.uniform1f(uSpd, speedMul);
-  gl.uniform1f(uQty, (parseInt(qtyEl.value)||60)/100);
-  gl.uniform1f(uScl, (parseInt(scaleEl.value)||110)/100);
-  gl.uniform1f(uMask, maskEl.checked?1.0:0.0);
-
-  gl.uniform4f(uP01, P.p0, P.p1, 0,0);
-  gl.uniform4f(uP23, P.p2, P.p3, 0,0);
-  gl.uniform4f(uP45, P.p4, P.p5, 0,0);
-
-  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
-  requestAnimationFrame(tick);
-}
-requestAnimationFrame(tick);
-
-/* initial fit */
-function fit(){fitSquare(); pushURL();}
-addEventListener('load',fit,{once:true});
+/* boot */
+seedAttractors(); reseedAgents(); timeEl.value=P.t0;
 </script>
 </body>
 </html>
